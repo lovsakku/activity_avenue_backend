@@ -4,7 +4,7 @@ const cors = require("cors");
 var path = require("path");
 var fs = require("fs");
 const app = express();
-const port = 3001;
+
 
 app.use(
   cors({
@@ -146,7 +146,7 @@ MongoClient.connect(url)
   .catch((err) => {
     console.error("Cannot connecting to MongoDB:", err);
   });
-
+const port = process.env.PORT||3001;
 app.listen(port, () => {
 
     console.log(`Server is running on port: ${port}`);

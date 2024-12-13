@@ -80,7 +80,7 @@ MongoClient.connect(url)
       }
     });
 
-    app.get("/collection/:collectionName", async (req, res) => {
+    app.get("/collection/products", async (req, res) => {
 
       try {
         const collection = db.collection(req.params.collectionName);
@@ -106,7 +106,7 @@ MongoClient.connect(url)
         }
       });
 
-    app.get("/collection/:collectionName/search", async (req, res) => {
+    app.get("/collection/products/search", async (req, res) => {
       
       try {
         const collection = db.collection(req.params.collectionName);

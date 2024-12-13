@@ -2,13 +2,14 @@
 const express = require('express');
 const path = require('path');
 const { MongoClient, ObjectID } = require('mongodb'); // Use destructuring to import MongoClient and ObjectID
+const cors = require('cors');
 
 // Create an Express.js instance:
 const app = express();
 
 // Logger Middleware
 const logger = (req, res, next) => {
-    // Log the HTTP method, request URL, and timestamp
+    // Log the HTTP method, request URL
     console.log(`${req.method} ${req.url} - ${new Date().toISOString()}`);
     next(); // Pass control to the next middleware or route handler
 };
@@ -17,30 +18,33 @@ const logger = (req, res, next) => {
 app.use(logger);
 
 // Config Express.js
-app.use(express.json());
-app.set('port', 3001);
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS,POST,PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers'
-    );
-    next();
-});
+app.use(
+    cors({
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "Origin",
+        "Accept",
+        "X-Requested-With",
+      ],
+      credentials: true,
+    })
+  );
 
 app.use(express.static(path.join('C:\\Users\\sakku\\OneDrive\\Desktop\\Activity Avenue')));
 
 app.use('/images', express.static(path.join('C:\\Users\\sakku\\OneDrive\\Desktop\\Activity Avenue Backend\\images')));
 
 // MongoDB Compass connection string
-const uri = 'mongodb+srv://sakina:fullstack@cluster0.4m3fb.mongodb.net/';
+const url = 'mongodb+srv://sakina:fullstack@cluster0.4m3fb.mongodb.net/';
 const options = { useNewUrlParser: true, useUnifiedTopology: true };
 
 let db;
 
 // Connect to MongoDB Compass with error handling
-MongoClient.connect(uri, options)
+MongoClient.connect(url, options)
     .then(client => {
         console.log('Successfully connected to MongoDB Compass');
         db = client.db('Webstore'); // The database name must match your MongoDB Compass setup

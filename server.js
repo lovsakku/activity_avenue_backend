@@ -1,126 +1,153 @@
-// Import dependencies modules:
-const express = require('express');
-const path = require('path');
-const { MongoClient, ObjectID } = require('mongodb'); // Use destructuring to import MongoClient and ObjectID
-
-// Create an Express.js instance:
+const express = require("express");
+const { MongoClient, ObjectId } = require("mongodb");
+const cors = require("cors");
+var path = require("path");
+var fs = require("fs");
 const app = express();
+const port = 3001;
 
-// Logger Middleware
-const logger = (req, res, next) => {
-    // Log the HTTP method, request URL, and timestamp
-    console.log(`${req.method} ${req.url} - ${new Date().toISOString()}`);
-    next(); // Pass control to the next middleware or route handler
-};
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Origin",
+      "Accept",
+      "X-Requested-With",
+    ],
+    credentials: true,
+  })
+);
 
-// Apply the logger middleware globally (before routes)
-app.use(logger);
-
-// Config Express.js
-app.use(express.json());
-app.set('port', 3001);
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS,POST,PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers'
-    );
-    next();
-});
-
-app.use(express.static(path.join('C:\\Users\\sakku\\OneDrive\\Desktop\\Activity Avenue')));
-
-app.use('/images', express.static(path.join('C:\\Users\\sakku\\OneDrive\\Desktop\\Activity Avenue Backend\\images')));
-
-// MongoDB Compass connection string
-const uri = 'mongodb+srv://sakina:fullstack@cluster0.4m3fb.mongodb.net/';
-const options = { useNewUrlParser: true, useUnifiedTopology: true };
-
+const url ="mongodb+srv://sakina:fullstack@cluster0.4m3fb.mongodb.net/";
+const dbName = "Webstore";
 let db;
 
-// Connect to MongoDB Compass with error handling
-MongoClient.connect(uri, options)
-    .then(client => {
-        console.log('Successfully connected to MongoDB Compass');
-        db = client.db('Webstore'); // The database name must match your MongoDB Compass setup
+app.use(express.json()); // middleware to use json
 
-        // Start the server after successful DB connection
-        app.listen(app.get('port'), () => {
-            console.log(`Express.js server running at http://localhost:${app.get('port')}`);
-        });
-    })
-    .catch(err => {
-        console.error('Error connecting to MongoDB:', err.message);
-        process.exit(1); // Exit the application if the connection fails
-    });
-
-// Route to fetch all products from the database
-app.get('/products', (req, res) => {
-    if (!db) {
-        return res.status(500).send({ error: 'Database connection not established' });
-    }
-
-    const collection = db.collection('products');
-    collection.find({}).toArray((err, items) => {
-        if (err) {
-            console.error('Error fetching products:', err.message);
-            return res.status(500).send({ error: 'Error fetching products' });
-        }
-        console.log('Fetched products:', items);  // Add this log
-        res.send(items);
-    });
+app.use(function (req, res, next) {
+  // logging middleware
+  console.log("Request IP: " + req.url);
+  console.log("Request Body: " + JSON.stringify(req.body));
+  console.log("Request Query Params: " + JSON.stringify(req.query));
+  console.log("Request date: " + new Date());
+  next();
 });
 
-// POST endpoint to add a new order
-app.post('/orders', (req, res) => {
-    const orderData = req.body;  // Order data received from the frontend
-
-    // Validate order data (basic validation)
-    if (!orderData || !orderData.items || !Array.isArray(orderData.items)) {
-        return res.status(400).send({ error: 'Invalid order data' });
+app.use(function (req, res, next) {
+  // static image file middleware
+  var filePath = path.join(__dirname, "static", req.url);
+  fs.stat(filePath, function (err, fileInfo) {
+    if (err) {
+      next();
+      return;
     }
+    if (fileInfo.isFile()) res.sendFile(filePath);
+    else next();
+  });
+});
 
-    // Insert the order into the 'orders' collection
-    const collection = db.collection('orders');
-    collection.insertOne(orderData, (err, result) => {
-        if (err) {
-            console.error('Error saving order:', err.message);
-            return res.status(500).send({ error: 'Error saving order' });
-        }
+MongoClient.connect(url) 
+  .then((client) => {
+    console.log("Connected to MongoDB");
+    db = client.db(dbName);
 
-        res.status(201).send({
-            message: 'Order placed successfully',
-            orderId: result.insertedId,
-        });
+    app.get("/", (req, res) => {
+      res.send("Hello, World! MongoDB connected.");
     });
-});
 
-// PUT endpoint to update product availability
-app.put('/products/:id', (req, res) => {
-    const productId = req.params.id;
-    const updateData = req.body;
+    app.post("/collection/:collectionName/addMany", async (req, res) => {
+      try {
+        let collection = db.collection(req.params.collectionName);
+        const result = await collection.insertMany(req.body);
+        return res.send(result);
+      } catch (err) {
+        console.error("Error adding multi records to db:", err);
+        return res.status(500).send("Error adding multi records to db");
+      }
+    });
 
-    // Validate if the updateData contains availableSpots and it's a number
-    if (!updateData || typeof updateData.availableSpots !== 'number') {
-        return res.status(400).send({ error: 'Invalid update data' });
-    }
+    app.post("/collection/:collectionName/addOne", async (req, res) => {
+      try {
+        let collection = db.collection(req.params.collectionName);
+        const result = await collection.insertOne(req.body);
+        return res.send(result);
+      } catch (err) {
+        console.error("Error adding single record to db:", err);
+        return res.status(500).send("Error adding single record to db");
+      }
+    });
 
-    const collection = db.collection('products');
-    collection.updateOne(
-        { _id: new ObjectID(productId) },
-        { $set: { availableSpots: updateData.availableSpots } }, // Update only the availableSpots field
-        (err, result) => {
-            if (err) {
-                console.error('Error updating product:', err.message);
-                return res.status(500).send({ error: 'Error updating product' });
-            }
+    app.get("/collection/:collectionName", async (req, res) => {
 
-            if (result.matchedCount === 0) {
-                return res.status(404).send({ error: 'Product not found' });
-            }
+      try {
+        const collection = db.collection(req.params.collectionName);
+        const items = await collection.find({}).toArray();
+        return res.json(items);
+      } catch (err) {
+        console.error("Error fetching items:", err);
+        return res.status(500).send("Error fetching items");
+      }
+    });
 
-            res.send({ message: 'Product availability updated successfully' });
+    app.put("/collection/:collectionName/update/:id", async (req, res) => {
+      
+        try {  
+          let collection = db.collection(req.params.collectionName);
+          const filter = { _id: new ObjectId(req.params.id) };
+          const updateDocument = { $set: req.body };
+          const result = await collection.updateOne(filter, updateDocument);
+          return res.send(result);
+        } catch (err) {
+          console.error("Error while trying to update record:", err);
+          return res.status(500).send("Error while trying to update record");
         }
-    );
-});
+      });
+
+    app.get("/collection/:collectionName/search", async (req, res) => {
+      
+      try {
+        const collection = db.collection(req.params.collectionName);
+        const query = req.query.value;
+        if (!query) {
+          return res.status(400).json({ error: "Query parameter is required" });
+        }
+        const searchQuery = {};
+        if (!isNaN(query)) {
+          const queryNumber = parseInt(query);
+          searchQuery.$or = [
+            { price: queryNumber },
+            { availableInventory: queryNumber },
+            { rating: queryNumber },
+          ];
+        } else {
+          searchQuery.$or = [
+            { title: { $regex: query, $options: "i" } }, 
+            { location: { $regex: query, $options: "i" } },
+            { description: { $regex: query, $options: "i" } },
+          ];
+        }
+        const items = await collection.find(searchQuery).toArray();
+        return res.json(items);
+      } catch (err) {
+        console.error("Error fetching items:", err);
+        return res.status(500).send("Error fetching items");
+      }
+    });
+
+
+    app.use(function (req, res) {
+      res.status(404);
+      res.send("Path not found!");
+    });
+  })
+  .catch((err) => {
+    console.error("Cannot connecting to MongoDB:", err);
+  });
+
+app.listen(port, () => {
+
+    console.log(`Server is running on port: ${port}`);
+  });

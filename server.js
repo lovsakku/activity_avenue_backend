@@ -2,51 +2,45 @@
 const express = require('express');
 const path = require('path');
 const { MongoClient, ObjectID } = require('mongodb'); // Use destructuring to import MongoClient and ObjectID
-const cors = require('cors');
 
 // Create an Express.js instance:
 const app = express();
 
 // Logger Middleware
 const logger = (req, res, next) => {
-    // Log the HTTP method, request URL
+    // Log the HTTP method, request URL, and timestamp
     console.log(`${req.method} ${req.url} - ${new Date().toISOString()}`);
     next(); // Pass control to the next middleware or route handler
 };
 
 // Apply the logger middleware globally (before routes)
+app.use(logger);
+
+// Config Express.js
 app.use(express.json());
 app.set('port', 3001);
-app.use(express.urlencoded({ extended: true }));
-
-// Config Express.js    
-app.use(
-    cors({
-      origin: "*",
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: [
-        "Content-Type",
-        "Authorization",
-        "Origin",
-        "Accept",
-        "X-Requested-With",
-      ],
-      credentials: true,
-    })
-  );
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS,POST,PUT');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers'
+    );
+    next();
+});
 
 app.use(express.static(path.join('C:\\Users\\sakku\\OneDrive\\Desktop\\Activity Avenue')));
 
 app.use('/images', express.static(path.join('C:\\Users\\sakku\\OneDrive\\Desktop\\Activity Avenue Backend\\images')));
 
 // MongoDB Compass connection string
-const url = 'mongodb+srv://sakina:fullstack@cluster0.4m3fb.mongodb.net/';
+const uri = 'mongodb+srv://sakina:fullstack@cluster0.4m3fb.mongodb.net/';
 const options = { useNewUrlParser: true, useUnifiedTopology: true };
 
 let db;
 
 // Connect to MongoDB Compass with error handling
-MongoClient.connect(url, options)
+MongoClient.connect(uri, options)
     .then(client => {
         console.log('Successfully connected to MongoDB Compass');
         db = client.db('Webstore'); // The database name must match your MongoDB Compass setup
@@ -84,7 +78,7 @@ app.post('/orders', (req, res) => {
 
     // Validate order data (basic validation)
     if (!orderData || !orderData.items || !Array.isArray(orderData.items)) {
-        return res.status(3000).send({ error: 'Invalid order data' });
+        return res.status(400).send({ error: 'Invalid order data' });
     }
 
     // Insert the order into the 'orders' collection
@@ -130,4 +124,3 @@ app.put('/products/:id', (req, res) => {
         }
     );
 });
-

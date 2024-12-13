@@ -15,9 +15,11 @@ const logger = (req, res, next) => {
 };
 
 // Apply the logger middleware globally (before routes)
-app.use(logger);
+app.use(express.json());
+app.set('port', 3001);
+app.use(express.urlencoded({ extended: true }));
 
-// Config Express.js
+// Config Express.js    
 app.use(
     cors({
       origin: "*",
@@ -82,7 +84,7 @@ app.post('/orders', (req, res) => {
 
     // Validate order data (basic validation)
     if (!orderData || !orderData.items || !Array.isArray(orderData.items)) {
-        return res.status(400).send({ error: 'Invalid order data' });
+        return res.status(3000).send({ error: 'Invalid order data' });
     }
 
     // Insert the order into the 'orders' collection
